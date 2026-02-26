@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>সাদেক এআই অ্যাপ বিল্ডার</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-red: #ff1744; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #ffffff; color: #000; overflow-x: hidden; }
+
+        /* হেডার ও মেনু */
+        .header { padding: 15px; display: flex; align-items: center; border-bottom: 5px solid #000; background: #fff; }
+        .menu-icon { font-size: 30px; cursor: pointer; padding: 0 15px; }
+
+        /* স্লাইডবার মেনু */
+        .sidebar { height: 100%; width: 0; position: fixed; z-index: 3000; top: 0; left: 0; background-color: #fff; overflow-x: hidden; transition: 0.4s; box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
+        .sidebar-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #000; }
+        .sidebar-content { padding: 20px; }
+        .sidebar-content input { width: 90%; padding: 12px; margin: 10px 0; border: 3px solid #000; border-radius: 5px; font-weight: bold; }
+
+        /* মেইন কন্টেইনার */
+        .container { display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: center; }
+        
+        /* আপনার ৫px কালো বর্ডার ইনপুট */
+        .input-box { 
+            width: 90%; max-width: 450px; height: 200px; 
+            border: 5px solid #000; border-radius: 10px; 
+            padding: 15px; font-size: 20px; color: #000; 
+            outline: none; resize: none; margin-top: 20px; text-align: center; 
+        }
+
+        /* আপনার টকটকে লাল বাটন */
+        .btn-submit { 
+            background: var(--primary-red); color: white; border: none; 
+            padding: 15px 40px; font-size: 28px; border-radius: 8px; 
+            cursor: pointer; margin-top: 30px; font-weight: bold; width: 90%; max-width: 450px;
+        }
+
+        /* অ্যানিমেশন: Spinning Clock */
+        #loadingSection { display: none; margin-top: 30px; }
+        .loading-text { font-size: 22px; margin-bottom: 15px; font-weight: bold; }
+        .clock-img { width: 80px; animation: spin 2s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* রেজাল্ট ও প্লে বাটন */
+        #viewBtn { 
+            display: none; background: #007bff; color: white; border: none; 
+            padding: 18px; font-size: 22px; border-radius: 8px; cursor: pointer; 
+            margin-top: 30px; width: 90%; max-width: 450px; font-weight: bold;
+        }
+
+        /* অ্যাপ ভিউয়ার (ফুল স্ক্রিন) */
+        #appViewer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 4000; }
+        .viewer-header { background: #000; color: #fff; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { background: #fff; color: #000; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        iframe { width: 100%; height: calc(100% - 65px); border: none; }
+    </style>
+</head>
+<body>
+
+    <div id="mySidebar" class="sidebar">
+        <div class="sidebar-header">
+            <b style="font-size: 22px;">সেটিংস</b>
+            <span style="font-size: 35px; cursor: pointer;" onclick="closeNav()">&times;</span>
+        </div>
+        <div class="sidebar-content">
+            <p>আপনার নাম:</p>
+            <input type="text" id="uName" placeholder="উদা: সাদেক">
+            <p>Gemini API Key:</p>
+            <input type="text" id="uKey" placeholder="AIzaSy...">
+            <button onclick="saveProfile()" style="width:100%; padding:15px; background:green; color:white; border:none; border-radius:5px; margin-top:15px; font-weight:bold;">সেভ করুন</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="menu-icon" onclick="openNav()">☰</div>
+        <div style="font-size: 22px; font-weight: bold; flex-grow: 1; text-align: center;">সাদেক এআই</div>
+    </div>
+
+    <div class="container">
+        <h2 id="welcomeMsg">হ্যালো!</h2>
+        <textarea id="promptInput" class="input-box" placeholder="আপনার অ্যাপের আইডিয়া এখানে লিখুন..."></textarea>
+        <button class="btn-submit" onclick="startGeneration()">জমা দিন</button>
+
+        <div id="loadingSection">
+            <div class="loading-text">আপনার এআই কোড লিখছে...</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/3588/3588285.png" class="clock-img">
+        </div>
+
+        <button id="viewBtn" onclick="showAppViewer()">▶ আপনার অ্যাপ দেখুন (প্লে করুন)</button>
+    </div>
+
+    <div id="appViewer">
+        <div class="viewer-header">
+            <button class="back-btn" onclick="hideAppViewer()"><i class="fas fa-arrow-left"></i> ফিরে যান</button>
+            <b>অ্যাপ প্রিভিউ</b>
+            <button class="back-btn" onclick="copyCode()">কপি কোড</button>
+        </div>
+        <iframe id="appFrame"></iframe>
+    </div>
+
+<script>
+    let lastGeneratedCode = "";
+
+    function openNav() { document.getElementById("mySidebar").style.width = "300px"; }
+    function closeNav() { document.getElementById("mySidebar").style.width = "0"; }
+
+    function saveProfile() {
+        localStorage.setItem('s_name', document.getElementById('uName').value);
+        localStorage.setItem('s_key', document.getElementById('uKey').value);
+        alert("আপনার প্রোফাইল সেভ হয়েছে!");
+        location.reload();
+    }
+
+    window.onload = () => {
+        const name = localStorage.getItem('s_name') || "ইউজার";
+        document.getElementById('welcomeMsg').innerText = `হ্যালো, ${name}!`;
+    };
+
+    async function startGeneration() {
+        const prompt = document.getElementById('promptInput').value;
+        const userKey = localStorage.getItem('s_key');
+
+        if (!userKey) { alert("প্রথমে মেনু থেকে API Key সেভ করুন!"); openNav(); return; }
+        if (!prompt) { alert("আইডিয়া লিখুন!"); return; }
+
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('viewBtn').style.display = 'none';
+
+        try {
+            // ডাইনামিক মডেল ডিটেকশন
+            const mRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${userKey}`);
+            const mData = await mRes.json();
+            const bestModel = mData.models.find(m => m.supportedGenerationMethods.includes("generateContent")).name;
+
+            // কোড জেনারেশন
+            const genUrl = `https://generativelanguage.googleapis.com/v1beta/${bestModel}:generateContent?key=${userKey}`;
+            const response = await fetch(genUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: `Write a single-file professional HTML/CSS/JS code for: ${prompt}. Return ONLY the code, no markdown.` }] }] })
+            });
+
+            const data = await response.json();
+            let rawCode = data.candidates[0].content.parts[0].text;
+            lastGeneratedCode = rawCode.replace(/```html|```javascript|```css|```/g, "").trim();
+
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('viewBtn').style.display = 'block';
+        } catch (e) {
+            alert("API Key ভুল অথবা লিমিট শেষ! আবার চেক করুন।");
+            document.getElementById('loadingSection').style.display = 'none';
+        }
+    }
+
+    function showAppViewer() {
+        document.getElementById('appViewer').style.display = 'block';
+        const frame = document.getElementById('appFrame');
+        const doc = frame.contentWindow.document;
+        doc.open(); doc.write(lastGeneratedCode); doc.close();
+    }
+
+    function hideAppViewer() { document.getElementById('appViewer').style.display = 'none'; }
+
+    function copyCode() {
+        navigator.clipboard.writeText(lastGeneratedCode);
+        alert("কোড কপি করা হয়েছে! ✅");
+    }
+</script>
+</body>
+</html>
