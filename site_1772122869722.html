@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D Subway Runner - Skateboard & Magnet Power-ups</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; touch-action: none; }
+        #ui { 
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: white; font-size: 28px; font-weight: bold; pointer-events: none;
+            text-shadow: 2px 2px 4px #000; z-index: 10;
+        }
+        #powerUpInfo {
+            position: absolute; top: 70px; width: 100%; text-align: center;
+            color: yellow; font-size: 20px; font-weight: bold; pointer-events: none;
+            text-shadow: 1px 1px 3px #000; z-index: 10;
+        }
+        #gameOver {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: gold; z-index: 100;
+        }
+        button {
+            padding: 15px 40px; font-size: 22px; cursor: pointer; background: #27ae60;
+            color: white; border: none; border-radius: 30px; margin-top: 20px;
+        }
+        .level-up {
+            color: #f1c40f; font-size: 40px; animation: bounce 1s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        LEVEL: <span id="levelVal">1</span> | COINS: <span id="scoreVal">0</span>
+    </div>
+    <div id="powerUpInfo">
+        <span id="skateboardTime" style="display: none;">SKATEBOARD: </span>
+        <span id="magnetTime" style="display: none;">MAGNET: </span>
+    </div>
+    
+    <div id="gameOver">
+        <h1>GAME OVER!</h1>
+        <p id="finalScoreText" style="font-size: 24px;">Score: 0</p>
+        <button onclick="location.reload()">TRY AGAIN</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        let scene, camera, renderer, player, mixer, clock;
+        let obstacles = [], coins = [], trees = [], roadMarkings = [];
+        let skateboards = [], magnets = []; // নতুন পাওয়ার-আপ অ্যারে
+        let score = 0, currentLevel = 1, gameActive = true, gameSpeed = 0.45;
+        let currentLane = 0; 
+        const laneWidth = 2.5;
+        let isJumping = false, jumpVel = 0;
+
+        // পাওয়ার-আপ ভেরিয়েবল
+        let hasSkateboard = false;
+        let skateboardTimer = 0;
+        const skateboardDuration = 5; // সেকেন্ড
+        let hasMagnet = false;
+        let magnetTimer = 0;
+        const magnetDuration = 7; // সেকেন্ড
+        const magnetRadius = 5; // ম্যাগনেটের কয়েন টানার ব্যাসার্ধ
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.Fog(0x87CEEB, 30, 120);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 12); 
+            camera.lookAt(0, 2, -5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+            const light = new THREE.DirectionalLight(0xffffff, 1.5);
+            light.position.set(10, 20, 10);
+            light.castShadow = true;
+            scene.add(light);
+
+            const groundGeo = new THREE.PlaneGeometry(10, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 }); 
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const grassLeft = new THREE.Mesh(new THREE.PlaneGeometry(50, 2000), new THREE.MeshStandardMaterial({color: 0x27ae60}));
+            grassLeft.rotation.x = -Math.PI / 2;
+            grassLeft.position.set(-30, -0.1, 0);
+            scene.add(grassLeft);
+            const grassRight = grassLeft.clone();
+            grassRight.position.x = 30;
+            scene.add(grassRight);
+
+            const loader = new GLTFLoader();
+            loader.load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', (gltf) => {
+                player = gltf.scene;
+                player.scale.set(0.4, 0.4, 0.4);
+                player.rotation.y = Math.PI; 
+                player.traverse(n => { if (n.isMesh) { n.castShadow = true; } });
+                scene.add(player);
+
+                mixer = new THREE.AnimationMixer(player);
+                const runAction = mixer.clipAction(gltf.animations.find(a => a.name === 'Running'));
+                runAction.play();
+            });
+
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
+                if (!gameActive) return;
+                let touchEndX = e.changedTouches[0].clientX;
+                let touchEndY = e.changedTouches[0].clientY;
+                let dx = touchEndX - touchStartX;
+                let dy = touchEndY - touchStartY;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 30 && currentLane < 1) currentLane++; 
+                    else if (dx < -30 && currentLane > -1) currentLane--; 
+                } else {
+                    if (dy < -30 && !isJumping) {
+                        isJumping = true;
+                        jumpVel = 0.3;
+                    }
+                }
+                
+                if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && !isJumping) {
+                    isJumping = true;
+                    jumpVel = 0.3;
+                }
+            }, { passive: false });
+
+            document.addEventListener('keydown', (e) => {
+                if (!gameActive) return;
+                if ((e.code === 'ArrowLeft' || e.code === 'KeyA') && currentLane > -1) currentLane--;
+                if ((e.code === 'ArrowRight' || e.code === 'KeyD') && currentLane < 1) currentLane++;
+                if ((e.code === 'Space' || e.code === 'ArrowUp') && !isJumping) {
+                    isJumping = true;
+                    jumpVel = 0.3;
+                }
+            });
+        }
+
+        function checkLevelUp() {
+            let newLevel = Math.floor(score / 10) + 1;
+            if (newLevel > currentLevel) {
+                currentLevel = newLevel;
+                gameSpeed += 0.1; 
+                document.getElementById('levelVal').innerText = currentLevel;
+                
+                document.getElementById('levelVal').classList.add('level-up');
+                setTimeout(() => {
+                    document.getElementById('levelVal').classList.remove('level-up');
+                }, 1000);
+            }
+        }
+
+        function createTree() {
+            const trunkHeight = Math.random() * 2 + 2; 
+            const trunkRadius = Math.random() * 0.2 + 0.1; 
+            const foliageRadius = Math.random() * 1.5 + 1; 
+
+            const trunkGeo = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); 
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = trunkHeight / 2;
+            trunk.castShadow = true;
+
+            const foliageGeo = new THREE.SphereGeometry(foliageRadius, 16, 16);
+            const foliageMat = new THREE.MeshStandardMaterial({ color: 0x228B22 }); 
+            const foliage = new THREE.Mesh(foliageGeo, foliageMat);
+            foliage.position.y = trunkHeight + foliageRadius / 2;
+            foliage.castShadow = true;
+
+            const tree = new THREE.Group();
+            tree.add(trunk);
+            tree.add(foliage);
+
+            const side = Math.random() > 0.5 ? 1 : -1; 
+            const offsetX = (Math.random() * 10 + 6) * side; 
+            
+            tree.position.set(offsetX, 0, -150 - Math.random() * 50); 
+            scene.add(tree);
+            trees.push(tree);
+        }
+
+        function createRoadMarking() {
+            const markingGeo = new THREE.PlaneGeometry(0.5, 5); 
+            const markingMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+            const marking = new THREE.Mesh(markingGeo, markingMat);
+            marking.rotation.x = -Math.PI / 2;
+            marking.position.set(0, 0.01, -150); 
+            scene.add(marking);
+            roadMarkings.push(marking);
+        }
+
+        // স্কেটবোর্ড তৈরির ফাংশন
+        function createSkateboard(lane) {
+            const skateboardGeo = new THREE.BoxGeometry(1.5, 0.2, 0.6);
+            const skateboardMat = new THREE.MeshStandardMaterial({ color: 0x00BFFF }); // স্কাই ব্লু
+            const skateboard = new THREE.Mesh(skateboardGeo, skateboardMat);
+            skateboard.position.set(lane * laneWidth, 0.3, -120); // মাটি থেকে একটু উপরে
+            skateboard.castShadow = true;
+            scene.add(skateboard);
+            skateboards.push(skateboard);
+        }
+
+        // চুম্বক তৈরির ফাংশন
+        function createMagnet(lane) {
+            const magnetGeo = new THREE.TorusGeometry(0.5, 0.15, 8, 16, Math.PI); // U আকৃতি
+            const magnetMat = new THREE.MeshStandardMaterial({ color: 0xFF0000 }); // লাল
+            const magnet = new THREE.Mesh(magnetGeo, magnetMat);
+            magnet.rotation.x = Math.PI / 2;
+            magnet.rotation.z = Math.PI / 2; // সোজা করে দাঁড় করানো
+            magnet.position.set(lane * laneWidth, 1.0, -120); 
+            magnet.castShadow = true;
+            scene.add(magnet);
+            magnets.push(magnet);
+        }
+
+
+        function createSpawner() {
+            let spawnRate = 0.04 + (currentLevel * 0.005);
+            if (Math.random() < spawnRate) {
+                const lane = Math.floor(Math.random() * 3) - 1;
+                const spawnType = Math.random();
+
+                if (spawnType < 0.4) { // অবস্ট্যাকল
+                    const obstacle = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.8, 1.5, 2),
+                        new THREE.MeshStandardMaterial({ color: 0xe74c3c })
+                    );
+                    obstacle.position.set(lane * laneWidth, 0.75, -120);
+                    obstacle.castShadow = true;
+                    scene.add(obstacle);
+                    obstacles.push(obstacle);
+                } else if (spawnType < 0.8) { // কয়েন
+                    const coin = new THREE.Mesh(
+                        new THREE.TorusGeometry(0.4, 0.1, 16, 32),
+                        new THREE.MeshStandardMaterial({ color: 0xf1c40f, emissive: 0xf1c40f, emissiveIntensity: 0.5 })
+                    );
+                    coin.position.set(lane * laneWidth, 1.2, -120);
+                    coin.rotation.x = Math.PI / 2; 
+                    scene.add(coin);
+                    coins.push(coin);
+                } else if (spawnType < 0.9) { // স্কেটবোর্ড
+                    createSkateboard(lane);
+                } else { // চুম্বক
+                    createMagnet(lane);
+                }
+            }
+
+            if (Math.random() < 0.01 + (currentLevel * 0.001)) { 
+                createTree();
+            }
+
+            if (roadMarkings.length === 0 || roadMarkings[roadMarkings.length - 1].position.z > -100) {
+                 createRoadMarking();
+            }
+        }
+
+        function animate() {
+            if (!gameActive) return;
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            if (player) {
+                player.position.x = THREE.MathUtils.lerp(player.position.x, currentLane * laneWidth, 0.2);
+
+                if (isJumping) {
+                    player.position.y += jumpVel;
+                    jumpVel -= 0.015;
+                    if (player.position.y <= 0) {
+                        player.position.y = 0;
+                        isJumping = false;
+                        jumpVel = 0;
+                    }
+                }
+
+                createSpawner();
+
+                // পাওয়ার-আপ টাইমার আপডেট
+                if (hasSkateboard) {
+                    skateboardTimer -= delta;
+                    document.getElementById('skateboardTime').innerText = `SKATEBOARD: ${Math.max(0, skateboardTimer).toFixed(1)}s`;
+                    document.getElementById('skateboardTime').style.display = 'inline';
+                    if (skateboardTimer <= 0) {
+                        hasSkateboard = false;
+                        document.getElementById('skateboardTime').style.display = 'none';
+                    }
+                }
+                if (hasMagnet) {
+                    magnetTimer -= delta;
+                    document.getElementById('magnetTime').innerText = `MAGNET: ${Math.max(0, magnetTimer).toFixed(1)}s`;
+                    document.getElementById('magnetTime').style.display = 'inline';
+                    if (magnetTimer <= 0) {
+                        hasMagnet = false;
+                        document.getElementById('magnetTime').style.display = 'none';
+                    }
+                }
+
+                // অবজেক্ট, কয়েন, গাছ, রোড মার্কিং, স্কেটবোর্ড এবং চুম্বক মুভ ও চেক
+                const allDynamicObjects = [obstacles, coins, trees, roadMarkings, skateboards, magnets];
+
+                for (const objectArray of allDynamicObjects) {
+                    for (let i = objectArray.length - 1; i >= 0; i--) {
+                        objectArray[i].position.z += gameSpeed;
+
+                        if (objectArray === obstacles) { 
+                            const pBox = new THREE.Box3().setFromObject(player);
+                            const oBox = new THREE.Box3().setFromObject(objectArray[i]);
+                            if (pBox.intersectsBox(oBox)) {
+                                if (hasSkateboard) { // স্কেটবোর্ড থাকলে অবস্ট্যাকল এড়িয়ে যাবে
+                                    scene.remove(objectArray[i]);
+                                    objectArray.splice(i, 1);
+                                } else { // স্কেটবোর্ড না থাকলে গেম ওভার
+                                    gameActive = false;
+                                    document.getElementById('finalScoreText').innerText = "Score: " + score + " | Level: " + currentLevel;
+                                    document.getElementById('gameOver').style.display = 'flex';
+                                }
+                            }
+                        } else if (objectArray === coins) { 
+                            if (hasMagnet) { // ম্যাগনেট থাকলে কয়েন টেনে নেবে
+                                if (player.position.distanceTo(objectArray[i].position) < magnetRadius) {
+                                    scene.remove(objectArray[i]);
+                                    objectArray.splice(i, 1);
+                                    score++;
+                                    document.getElementById('scoreVal').innerText = score;
+                                    checkLevelUp(); 
+                                    continue;
+                                }
+                            } else if (player.position.distanceTo(objectArray[i].position) < 1.8) {
+                                scene.remove(objectArray[i]);
+                                objectArray.splice(i, 1);
+                                score++;
+                                document.getElementById('scoreVal').innerText = score;
+                                checkLevelUp(); 
+                                continue; 
+                            }
+                        } else if (objectArray === skateboards) { // স্কেটবোর্ড সংগ্রহ
+                            if (player.position.distanceTo(objectArray[i].position) < 1.5) {
+                                scene.remove(objectArray[i]);
+                                objectArray.splice(i, 1);
+                                hasSkateboard = true;
+                                skateboardTimer = skateboardDuration;
+                                continue;
+                            }
+                        } else if (objectArray === magnets) { // চুম্বক সংগ্রহ
+                            if (player.position.distanceTo(objectArray[i].position) < 1.5) {
+                                scene.remove(objectArray[i]);
+                                objectArray.splice(i, 1);
+                                hasMagnet = true;
+                                magnetTimer = magnetDuration;
+                                continue;
+                            }
+                        }
+                        
+                        // নির্দিষ্ট দূরত্বের বাইরে চলে গেলে রিমুভ করো
+                        if (objectArray[i].position.z > 20) {
+                            scene.remove(objectArray[i]);
+                            objectArray.splice(i, 1);
+                        }
+                    }
+                }
+                gameSpeed += 0.0001;
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
