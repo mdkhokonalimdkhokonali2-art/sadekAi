@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Multi-Page App</title>
+    <style>
+        /* Basic Resets & Variables */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --accent-color: #28a745;
+            --background-light: #f8f9fa;
+            --background-dark: #343a40;
+            --text-color-light: #333;
+            --text-color-dark: #f8f9fa;
+            --border-color: #dee2e6;
+            --spacing-unit: 1rem;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color-light);
+            background-color: var(--background-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-unit);
+            width: 100%;
+        }
+
+        /* Header & Navigation */
+        header {
+            background-color: var(--background-dark);
+            color: var(--text-color-dark);
+            padding: var(--spacing-unit) 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--text-color-dark);
+            text-decoration: none;
+            margin-right: var(--spacing-unit);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0; /* Override default margin */
+            padding: 0; /* Override default padding */
+        }
+
+        nav li {
+            margin-left: 1.5rem;
+        }
+
+        nav a {
+            color: var(--text-color-dark);
+            text-decoration: none;
+            padding: 0.5rem 0;
+            display: block;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover,
+        nav a.active {
+            color: var(--primary-color);
+        }
+
+        nav a.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--primary-color);
+        }
+
+        /* Main Content */
+        main {
+            flex-grow: 1;
+            padding: var(--spacing-unit) 0;
+            background-color: var(--background-light);
+        }
+
+        .page-section {
+            display: none; /* Hidden by default, JS will show active page */
+            padding: 2rem 0;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .page-section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 2.2rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .page-section p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        /* Home Page Specific */
+        #page-home {
+            text-align: center;
+        }
+        #page-home h1 {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        #page-home p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto 2rem auto;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: var(--text-color-dark);
+            padding: 0.8rem 1.8rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .cta-button:hover {
+            background-color: #218838;
+        }
+
+        /* Dashboard Page Specific */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .dashboard-card {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .dashboard-card h3 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+        .dashboard-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .dashboard-card .description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        /* Services Page Specific */
+        .service-list {
+            list-style: none;
+            padding: 0;
+        }
+        .service-list li {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .service-list li:last-child {
+            margin-bottom: 0;
+        }
+        .service-list li span {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            margin-right: 1rem;
+        }
+
+        /* Contact Page Specific */
+        .contact-form label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .contact-form input[type="text"],
+        .contact-form input[type="email"],
+        .contact-form textarea {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        .contact-form textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .contact-form button {
+            background-color: var(--primary-color);
+            color: var(--text-color-dark);
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease;
+        }
+        .contact-form button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--background-dark);
+            color: var(--text-color-dark);
+            text-align: center;
+            padding: var(--spacing-unit) 0;
+            margin-top: auto; /* Push footer to bottom */
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            header .container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .logo {
+                margin-bottom: var(--spacing-unit);
+            }
+            nav ul {
+                flex-direction: column;
+                width: 100%;
+            }
+            nav li {
+                margin: 0;
+                width: 100%;
+            }
+            nav a {
+                padding: 0.8rem var(--spacing-unit);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            nav a.active::after {
+                width: 50%;
+                left: var(--spacing-unit);
+            }
+            #page-home h1 {
+                font-size: 2.5rem;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="#" class="logo" data-page="page-home">DemoApp</a>
+            <nav>
+                <ul>
+                    <li><a href="#home" data-page="page-home" class="active">Home</a></li>
+                    <li><a href="#about" data-page="page-about">About Us</a></li>
+                    <li><a href="#services" data-page="page-services">Services</a></li>
+                    <li><a href="#dashboard" data-page="page-dashboard">Dashboard</a></li>
+                    <li><a href="#contact" data-page="page-contact">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <section id="page-home" class="page-section active">
+                <h1>Welcome to Our Demo App!</h1>
+                <p>This is a single-page application designed to demonstrate multiple sections and dynamic content loading without full page reloads. Explore the navigation to see different features.</p>
+                <a href="#" class="cta-button" data-page="page-services">Explore Our Services</a>
+            </section>
+
+            <section id="page-about" class="page-section">
+                <h2>About Us</h2>
+                <p>We are a passionate team dedicated to creating innovative solutions. Our journey began with a simple idea: to make complex tasks easier for everyone. Since then, we've grown, learned, and adapted, always keeping our users at the heart of what we do.</p>
+                <p>Our mission is to empower individuals and businesses with tools that streamline their operations and foster growth. We believe in transparency, integrity, and continuous improvement. Join us in shaping a better future!</p>
+            </section>
+
+            <section id="page-services" class="page-section">
+                <h2>Our Services</h2>
+                <p>We offer a wide range of services tailored to meet your needs. Each service is designed with efficiency and user experience in mind.</p>
+                <ul class="service-list">
+                    <li><span>&#9733;</span> Web Development: Crafting modern, responsive, and high-performance websites.</li>
+                    <li><span>&#9733;</span> Mobile App Development: Building intuitive and engaging mobile applications for iOS and Android.</li>
+                    <li><span>&#9733;</span> UI/UX Design: Creating beautiful and user-friendly interfaces that stand out.</li>
+                    <li><span>&#9733;</span> Cloud Solutions: Providing scalable and secure cloud infrastructure and services.</li>
+                    <li><span>&#9733;</span> Digital Marketing: Helping your business reach its target audience effectively.</li>
+                </ul>
+            </section>
+
+            <section id="page-dashboard" class="page-section">
+                <h2>Dashboard Overview</h2>
+                <p>Here's a quick look at your key metrics and activity. This section demonstrates dynamic data representation.</p>
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>Total Users</h3>
+                        <div class="value" id="dashboard-users">0</div>
+                        <p class="description">Active users in the last 24 hours.</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Revenue</h3>
+                        <div class="value" id="dashboard-revenue">$0</div>
+                        <p class="description">Total revenue generated this month.</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Projects</h3>
+                        <div class="value" id="dashboard-projects">0</div>
+                        <p class="description">Ongoing projects currently managed.</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h3>Tasks Completed</h3>
+                        <div class="value" id="dashboard-tasks">0</div>
+                        <p class="description">Tasks completed in the last week.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-contact" class="page-section">
+                <h2>Contact Us</h2>
+                <p>Have questions or want to get in touch? Fill out the form below, and we'll get back to you as soon as possible.</p>
+                <form class="contact-form">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" required>
+
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+
+                    <label for="message">Message:</label>
+                    <textarea id="message" name="message" required></textarea>
+
+                    <button type="submit">Send Message</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 DemoApp. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('nav a');
+            const pageSections = document.querySelectorAll('.page-section');
+            const logoLink = document.querySelector('.logo'); // Get the logo link
+
+            // Function to show a specific page and hide others
+            const showPage = (pageId) => {
+                // Hide all pages
+                pageSections.forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                // Show the target page
+                const targetPage = document.getElementById(pageId);
+                if (targetPage) {
+                    targetPage.classList.add('active');
+                }
+
+                // Update active class for navigation links
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.dataset.page === pageId) {
+                        link.classList.add('active');
+                    }
+                });
+
+                // Update URL hash for direct linking/bookmarking
+                history.pushState(null, '', `#${pageId.replace('page-', '')}`);
+            };
+
+            // Event listeners for navigation links
+            navLinks.forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault(); // Prevent default link behavior
+                    const pageId = event.target.dataset.page;
+                    showPage(pageId);
+                });
+            });
+
+            // Event listener for the logo link
+            logoLink.addEventListener('click', (event) => {
+                event.preventDefault();
+                showPage('page-home'); // Always navigate to home when logo is clicked
+            });
+
+            // Handle initial page load based on URL hash
+            const initialHash = window.location.hash.substring(1); // Remove '#'
+            if (initialHash) {
+                const pageIdFromHash = `page-${initialHash}`;
+                // Check if a page with this ID exists before trying to show it
+                if (document.getElementById(pageIdFromHash)) {
+                    showPage(pageIdFromHash);
+                } else {
+                    showPage('page-home'); // Fallback to home if hash is invalid
+                }
+            } else {
+                showPage('page-home'); // Default to home page if no hash
+            }
+
+            // --- Dynamic content for Dashboard Page ---
+            const dashboardUsers = document.getElementById('dashboard-users');
+            const dashboardRevenue = document.getElementById('dashboard-revenue');
+            const dashboardProjects = document.getElementById('dashboard-projects');
+            const dashboardTasks = document.getElementById('dashboard-tasks');
+
+            if (dashboardUsers && dashboardRevenue && dashboardProjects && dashboardTasks) {
+                // Simulate data loading with a delay
+                setTimeout(() => {
+                    dashboardUsers.textContent = '1,234';
+                    dashboardRevenue.textContent = '$56,789';
+                    dashboardProjects.textContent = '12';
+                    dashboardTasks.textContent = '87';
+                }, 500); // 0.5 second delay
+            }
+
+            // --- Contact Form Submission (dummy) ---
+            const contactForm = document.querySelector('.contact-form');
+            if (contactForm) {
+                contactForm.addEventListener('submit', (event) => {
+                    event.preventDefault(); // Prevent actual form submission
+                    alert('Thank you for your message! We will get back to you shortly.');
+                    contactForm.reset(); // Clear the form
+                });
+            }
+        });
+    </script>
+</body>
+</html>
