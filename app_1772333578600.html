@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ডিজিটাল ঘড়ি - সময় দেখার অ্যাপ</title>
+    <!-- CSS Styling for the app -->
+    <style>
+        /* General Body Styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e; /* Dark background */
+            color: #e0e0e0; /* Light text */
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        /* Container for the clock components */
+        .container {
+            text-align: center;
+            background-color: #0f3460; /* Slightly lighter dark blue */
+            padding: 40px 60px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Soft shadow */
+            border: 2px solid #533483; /* Accent border */
+            max-width: 90%;
+            box-sizing: border-box; /* Include padding in width calculation */
+            transition: all 0.3s ease; /* Smooth transitions for responsiveness */
+        }
+
+        /* Title Styling */
+        h1 {
+            font-size: 2.8em;
+            color: #e94560; /* Accent color for title */
+            margin-bottom: 25px;
+            text-shadow: 0 0 10px rgba(233, 69, 96, 0.6); /* Glow effect */
+        }
+
+        /* Greeting message styling */
+        #greeting {
+            font-size: 1.5em;
+            color: #a0a0ff; /* Light purple-blue */
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        /* Clock display styling */
+        #clock {
+            font-size: 6em; /* Large font for clock */
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8); /* Stronger glow */
+            margin-bottom: 20px;
+            letter-spacing: 3px; /* Space out the characters */
+            white-space: nowrap; /* Prevent time from wrapping */
+        }
+
+        /* Date display styling */
+        #date {
+            font-size: 1.8em;
+            color: #bbbbbb;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 40px;
+            }
+            h1 {
+                font-size: 2.2em;
+            }
+            #greeting {
+                font-size: 1.2em;
+            }
+            #clock {
+                font-size: 4.5em;
+            }
+            #date {
+                font-size: 1.4em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 25px;
+                border-radius: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+            #greeting {
+                font-size: 1em;
+                margin-bottom: 10px;
+            }
+            #clock {
+                font-size: 3em;
+                margin-bottom: 15px;
+            }
+            #date {
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ডিজিটাল ঘড়ি</h1> <!-- Title in Bengali -->
+        <div id="greeting"></div> <!-- Displays greeting message -->
+        <div id="clock"></div>    <!-- Displays the current time -->
+        <div id="date"></div>     <!-- Displays the current date -->
+    </div>
+
+    <!-- JavaScript for dynamic clock functionality -->
+    <script>
+        function updateClock() {
+            const now = new Date(); // Get current date and time
+
+            // --- Time Formatting ---
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // Determine AM/PM and convert to 12-hour format
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // The hour '0' should be '12'
+
+            // Add leading zeros for single-digit hours, minutes, and seconds
+            const formattedHours = String(hours).padStart(2, '0');
+            const formattedMinutes = String(minutes).padStart(2, '0');
+            const formattedSeconds = String(seconds).padStart(2, '0');
+
+            // Update the clock display
+            document.getElementById('clock').textContent =
+                `${formattedHours}:${formattedMinutes}:${formattedSeconds} ${ampm}`;
+
+            // --- Date Formatting ---
+            const optionsDate = {
+                weekday: 'long', // e.g., রবিবার
+                year: 'numeric', // e.g., 2023
+                month: 'long',   // e.g., অক্টোবর
+                day: 'numeric'   // e.g., 26
+            };
+            // Use 'bn-BD' locale for proper Bengali date formatting
+            const formattedDate = now.toLocaleDateString('bn-BD', optionsDate);
+            document.getElementById('date').textContent = formattedDate;
+
+            // --- Greeting Message ---
+            let greetingText = '';
+            const currentHour = now.getHours();
+            if (currentHour < 12) {
+                greetingText = 'শুভ সকাল!'; // Good Morning!
+            } else if (currentHour < 17) {
+                greetingText = 'শুভ দুপুর!'; // Good Afternoon!
+            } else if (currentHour < 20) {
+                greetingText = 'শুভ সন্ধ্যা!'; // Good Evening!
+            } else {
+                greetingText = 'শুভ রাত্রি!'; // Good Night!
+            }
+            document.getElementById('greeting').textContent = greetingText;
+        }
+
+        // Call updateClock once immediately to display the time on load
+        updateClock();
+        // Update the clock every second (1000 milliseconds)
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
